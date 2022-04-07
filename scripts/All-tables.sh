@@ -1,0 +1,103 @@
+#!/bin/bash
+
+# Not used atm
+# Keep for future reference
+
+TABLES_WITH_DATA=(
+    matomo_access
+    matomo_activity_log
+    matomo_advertising_google_clickids
+    matomo_advertising_google_reports
+    matomo_alert
+    matomo_alert_site
+    matomo_alert_triggered
+    matomo_archive_blob_2021_12
+    matomo_archive_blob_2022_01
+    matomo_archive_blob_2022_02
+    matomo_archive_blob_2022_03
+    matomo_archive_invalidations
+    matomo_archive_numeric_2021_12
+    matomo_archive_numeric_2022_01
+    matomo_archive_numeric_2022_02
+    matomo_archive_numeric_2022_03
+    matomo_archive_numeric_2022_04
+    matomo_bing_stats
+    matomo_bot_db
+    matomo_bot_db_stat
+    matomo_brute_force_log
+    matomo_custom_dimensions
+    matomo_custom_reports
+    matomo_experiments
+    matomo_experiments_strategy
+    matomo_experiments_variations
+    matomo_funnel
+    matomo_funnel_steps
+    matomo_goal
+    matomo_goal_attribution
+    matomo_google_stats
+    matomo_gpermissions_access
+    matomo_gpermissions_group
+    matomo_gpermissions_user
+    matomo_locks
+    matomo_log_abtesting
+    matomo_log_action
+    matomo_log_advertising
+    matomo_log_conversion
+    matomo_log_conversion_item
+    matomo_log_form
+    matomo_log_form_field
+    matomo_log_form_page
+    matomo_log_funnel
+    matomo_log_hsr
+    matomo_log_hsr_blob
+    matomo_log_hsr_event
+    matomo_log_hsr_site
+    matomo_log_link_visit_action
+    matomo_log_media
+    matomo_log_media_plays
+    matomo_log_performance
+    matomo_log_profiling
+    matomo_log_visit
+    matomo_logger_message
+    matomo_option
+    matomo_plugin_setting
+    matomo_privacy_logdata_anonymizations
+    matomo_queuedtracking_queue
+    matomo_report
+    matomo_report_subscriptions
+    matomo_segment
+    matomo_sequence
+    matomo_session
+    matomo_shortcode
+    matomo_singledigitalgateway
+    matomo_singledigitalgateway_log
+    matomo_site
+    matomo_site_form
+    matomo_site_hsr
+    matomo_site_rollup
+    matomo_site_setting
+    matomo_site_url
+    matomo_tagmanager_container
+    matomo_tagmanager_container_release
+    matomo_tagmanager_container_version
+    matomo_tagmanager_tag
+    matomo_tagmanager_trigger
+    matomo_tagmanager_variable
+    matomo_tracking_failure
+    matomo_twofactor_recovery_code
+    matomo_usage_measurement_profiles
+    matomo_user_dashboard
+    matomo_user_feedback_form_templates
+    matomo_user_feedback_forms
+    matomo_user_feedback_results
+    matomo_user_language
+    matomo_user_token_auth
+    matomo_yandex_stats
+)
+for i in "${TABLES_WITH_DATA[@]}"
+do
+    RETURN_STRING=$RETURN_STRING"--ignore-table=$i "
+done
+# echo "$RETURN_STRING"
+
+

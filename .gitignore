@@ -1,0 +1,12 @@
+.DS_Store
+
+*.sql
+!/mysql_data/*.sql
+!/scripts/*.sql
+*.sql.gz
+
+logs/*
+matomo-ci-conf/config.ini.php
+
+.env
+
