@@ -17,7 +17,7 @@ elif [[ -f $CI_DUMP/.gz ]]; then
     gunzip $CI_DUMP.gz
 else
     echo "No file, fetching from bucket."
-    mc cp minio/drone/mtmo/matomo-ci.sql.gz $CI_DUMP
+    mc cp minio/drone/mtmo/matomo-ci.sql.gz $CI_DUMP.gz
     gunzip $CI_DUMP.gz
 fi
 
