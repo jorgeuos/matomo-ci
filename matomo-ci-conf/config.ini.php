@@ -1,10 +1,10 @@
 ; <?php exit; ?> DO NOT REMOVE THIS LINE
 ; file automatically generated or modified by Matomo; you can manually override the default values in global.ini.php by redefining them in this file.
 [database]
-host = "${CI_DB_HOST}"
-username = "${CI_DB_USER}"
-password = "${CI_DB_PASS}"
-dbname = "${CI_DB_NAME}"
+host = "CI_DB_HOST"
+username = "CI_DB_USER"
+password = "CI_DB_PASS"
+dbname = "CI_DB_NAME"
 tables_prefix = "matomo_"
 charset = "utf8mb4"
 

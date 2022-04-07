@@ -44,6 +44,10 @@ else
     echo "No tables, can't proceed!"
 fi
 
+docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "sed -i 's/\$\{CI_DB_PASS\}/${CI_DB_PASS}/g' ./config/config.ini.php"
+
+
+
 # Perform DB update
 docker-compose -f docker-compose-ci.yml exec matomo-ci ./console core:update
 
@@ -57,8 +61,9 @@ else
     echo "Errhm, somethings wrong!"
 fi
 
-echo "Run core:archive:"
 
+
+echo "Run core:archive:"
 start=$(date +%s)
 if time docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:archive"; then
     end=$(date +%s)
