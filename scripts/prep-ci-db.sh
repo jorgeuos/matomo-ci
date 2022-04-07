@@ -14,11 +14,11 @@ if [[ -f $CI_DUMP ]]; then
     echo "We have dump!"
 elif [[ -f $CI_DUMP/.gz ]]; then
     echo "We have gzip file!"
-    gunzip $CI_DUMP/.gz
+    gunzip $CI_DUMP.gz
 else
     echo "No file, fetching from bucket."
     mc cp minio/drone/mtmo/matomo-ci.sql.gz $CI_DUMP
-    gunzip $CI_DUMP
+    gunzip $CI_DUMP.gz
 fi
 
 docker-compose -f ./docker-compose-ci.yml up -d
