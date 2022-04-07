@@ -6,7 +6,7 @@
 *.sql.gz
 
 logs/*
-matomo-ci-conf/config.ini.php
+# matomo-ci-conf/config.ini.php
 
 .env
 
