@@ -1,0 +1,32 @@
+version: '3'
+networks:
+  shared:
+    driver: bridge
+    ipam:
+      driver: default
+services:
+  db-ci:
+    image: mariadb:10.4.6
+    restart: always
+    container_name: db-ci
+    # command: --init-file /data/application/init.sql --max_allowed_packet=67108864
+    volumes:
+      - ./mysql_data/schema.sql:/docker-entrypoint-initdb.d/00-schema.sql:ro
+      - ./dumps/matomo-ci.sql:/docker-entrypoint-initdb.d/99-matomo-ci.sql:ro
+    environment:
+      MYSQL_ROOT_USER: ${CI_DB_USER}
+      MYSQL_ROOT_PASSWORD: ${CI_DB_PASS}
+    ports:
+     - 3307:3306
+    networks:
+      - shared
+  matomo-ci:
+    container_name: matomo-ci
+    restart: always
+    image: ${MATOMO_IMAGE}
+    volumes:
+      - ./matomo-ci-conf/config.ini.php:/var/www/html/config/config.ini.php
+    ports:
+    - 8081:9000
+    networks:
+      - shared
