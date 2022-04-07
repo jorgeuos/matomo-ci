@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 # shellcheck source=/dev/null
 source ./scripts/check-env.sh
@@ -68,6 +68,10 @@ else
     echo "Errhm, somethings wrong!"
 fi
 
+docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "curl -f -sS https://plugins.matomo.org/api/2.0/plugins/UserConsole/download/latest > /tmp/UserConsole.zip";
+docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "unzip /tmp/UserConsole.zip -q -d /var/www/html/plugins -o";
+docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console plugin:activate UserConsole";
+
 echo "Reset password:"
 if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console user:reset-password --login=admin-test --new-password=\"mtmo@rocks\""; then
     echo "Password resetted!"
@@ -76,12 +80,15 @@ else
 fi
 
 echo "Dump prepped CI DB:"
-mysqldump -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" "${CI_DB_NAME}" > "${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}" 2> /dev/null
+docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysqldump -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} ${CI_DB_NAME} > ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
 
 echo "GZIP dump:"
-gzip -f "${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
+docker-compose -f docker-compose-ci.yml exec db-ci bash -c "gzip -f ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
+
+echo "CP to host:"
+docker-compose -f docker-compose-ci.yml cp db-ci:"${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" "./dumps/${CI_DB_DUMP_NAME}.gz" 
 
 echo "Send to minio."
-$MINIO_CLIENT --config-dir "${MINIO_CONFIG}" cp "${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" "backup-stage/drone/mtmo/${CI_DB_DUMP_NAME}.gz"
+$MINIO_CLIENT --config-dir "${MINIO_CONFIG}" cp "./dumps/${CI_DB_DUMP_NAME}.gz" "minio/drone/mtmo/${CI_DB_DUMP_NAME}.gz"
 
-echo "Done!?"
+echo "Done!"
