@@ -17,7 +17,7 @@ services:
       MYSQL_ROOT_USER: ${CI_DB_USER}
       MYSQL_ROOT_PASSWORD: ${CI_DB_PASS}
     ports:
-     - ${CI_DB_PORT}:3306
+     - ${CI_DB_PORT}:${CI_DB_PORT_INTERNAL}
     networks:
       - shared
   matomo-ci:
