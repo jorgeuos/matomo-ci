@@ -61,7 +61,8 @@ while ! check_version ; do echo "Still waiting." && sleep 1; done
 # Just output something to see if get a response
 echo "Wait for DB."
 SQL="SHOW DATABASES;"
-while ! docker-compose -f docker-compose-ci.yml exec db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -AN -e"${SQL}" ; do sleep 1; done
+echo "Try: docker-compose -f docker-compose-ci.yml exec db-ci mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} -P${CI_DB_PORT} -AN -e${SQL}"
+while ! docker-compose -f docker-compose-ci.yml exec db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -P"${CI_DB_PORT}" -AN -e"${SQL}" ; do sleep 1; done
 
 # Do Import
 echo "Import DB"
