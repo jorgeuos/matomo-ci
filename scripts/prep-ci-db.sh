@@ -89,6 +89,8 @@ else
     echo "No tables, can't proceed!"
 fi
 
+echo "Make config file writable"
+docker exec --user=root -it  matomo-ci chown www-data:www-data /var/www/html/config/config.ini.php
 # Fix config file for Matomo inside docker
 echo "Try to update conf file."
 if docker-compose -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="dbname" --value="${CI_DB_NAME}"; then
