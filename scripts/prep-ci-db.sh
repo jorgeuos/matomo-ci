@@ -20,7 +20,7 @@ fetch_db_dump(){
             echo "Unzipping."
             gunzip "$CI_DUMP.gz"
         else
-            echo "Dump is old, fetch new on"
+            echo "Dump is old, fetch new one"
             echo "Fetch new dump"
             # shellcheck source=/dev/null
             source ./scripts/fetch-dump.sh
@@ -75,6 +75,7 @@ else
 fi
 
 # Fix config file for Matomo inside docker
+echo "Try to update conf file."
 if docker-compose -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="dbname" --value="${CI_DB_NAME}"; then
     # We need to update credentials somehow
     # sed -i 's/CI_DB_PASS/${CI_DB_PASS}/g' ./config/config.ini.php"; then
