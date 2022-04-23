@@ -25,10 +25,12 @@ check_if_gz(){
             echo "Fetch new dump"
             # shellcheck source=/dev/null
             source ./scripts/fetch-dump.sh
+            gunzip "$CI_DUMP.gz"
         fi
     else
         # shellcheck source=/dev/null
         source ./scripts/fetch-dump.sh
+        gunzip "$CI_DUMP.gz"
     fi
 }
 
