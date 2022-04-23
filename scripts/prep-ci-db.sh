@@ -11,7 +11,7 @@ cd "${DOCKER_COMPOSE_DIR}" || exit
 
 CI_DUMP=${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}
 TODAY=$(date "+%Y-%m-%d")
-fetch_db_dump(){
+check_if_gz(){
     echo "Check for GZ"
     if [ -f "$CI_DUMP.gz" ]; then
         GZ_DUMP_FROM=$(date -r "$CI_DUMP.gz" "+%Y-%m-%d")
@@ -42,10 +42,18 @@ if [ -f "$CI_DUMP" ]; then
     if [ "${DUMP_FROM}" == "${TODAY}" ]; then
         echo "Dump is from today, ${TODAY}, continue"
     else
-        fetch_db_dump
+        check_if_gz
     fi
 else
-    fetch_db_dump
+    check_if_gz
+fi
+
+# Check again if above steps failed
+if [ -f "$CI_DUMP" ]; then
+    echo "We have file."
+else
+    echo "Still no file, exit."
+    exit;
 fi
 
 echo "Launch docker"
