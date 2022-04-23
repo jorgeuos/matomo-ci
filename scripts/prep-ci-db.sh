@@ -9,16 +9,52 @@ DOCKER_COMPOSE_DIR=${SCRIPT_DIR}/../
 
 cd "${DOCKER_COMPOSE_DIR}" || exit
 
-CI_DUMP=./dumps/matomo-ci.sql
+CI_DUMP=${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}
 if [[ -f $CI_DUMP ]]; then
     echo "We have dump!"
 elif [[ -f $CI_DUMP/.gz ]]; then
     echo "We have gzip file!"
-    gunzip $CI_DUMP.gz
+    gunzip "$CI_DUMP.gz"
 else
     echo "No file, fetching from bucket."
     mc cp minio/drone/mtmo/matomo-ci.sql.gz $CI_DUMP.gz
     gunzip $CI_DUMP.gz
+fi
+
+
+CI_DUMP=${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}
+TODAY=$(date "+%Y-%m-%d")
+fetch_db_dump(){
+    if [ -f "$CI_DUMP.gz" ]; then
+        echo "GZIP found:"
+        GZ_DUMP_FROM=$(date -r "$CI_DUMP.gz" "+%Y-%m-%d")
+        if [ "${GZ_DUMP_FROM}" == "${TODAY}" ]; then
+            echo "GZ dump is from today, Unzip."
+            echo "Unzipping."
+            gunzip "$CI_DUMP.gz"
+        else
+            echo "Dump is old, fetch new on"
+            echo "Fetch new dump"
+            # shellcheck source=/dev/null
+            source ./scripts/fetch-dump.sh
+        fi
+    fi
+}
+
+# Check if file latest
+# Check if dump exists and from today
+if [ -f "$CI_DUMP" ]; then
+    echo "DB dump found:"
+    echo "$CI_DUMP"
+    echo "From:"
+    DUMP_FROM=$(date -r "$CI_DUMP" "+%Y-%m-%d")
+    if [ "${DUMP_FROM}" == "${TODAY}" ]; then
+        echo "Dump is from today, continue"
+    else
+        fetch_db_dump
+    fi
+else
+    fetch_db_dump
 fi
 
 docker-compose -f ./docker-compose-ci.yml up -d
@@ -35,40 +71,6 @@ SQL="SHOW DATABASES;"
 
 while ! docker-compose -f docker-compose-ci.yml exec db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -AN -e"${SQL}" ; do sleep 1; done
 
-TODAY=$(date "+%Y-%m-%d")
-fetch_db_dump(){
-    if [ -f "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}.gz" ]; then
-        echo "GZIP found, from:"
-        GZ_DUMP_FROM=$(date -r "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}.gz" "+%Y-%m-%d")
-        if [ "${GZ_DUMP_FROM}" == "${TODAY}" ]; then
-            echo "GZ dump is from today, Unzip."
-            echo "Unzipping."
-            gunzip "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}.gz"
-        else
-            echo "No DB found from today. Try fetch-dump first."
-            echo "Fetch new dump"
-            # shellcheck source=/dev/null
-            source ./scripts/fetch-dump.sh
-        fi
-    fi
-}
-
-# Check if file latest
-# Check if dump exists and from today
-if [ -f "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}" ]; then
-    echo "DB dump found:"
-    echo "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}"
-    echo "From:"
-    DUMP_FROM=$(date -r "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}" "+%Y-%m-%d")
-    if [ "${DUMP_FROM}" == "${TODAY}" ]; then
-        echo "Dump is from today, continue"
-    else
-        fetch_db_dump
-    fi
-else
-    fetch_db_dump
-fi
-
 # Do Import
 docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} 'matomo-ci' < /docker-entrypoint-initdb.d/99-matomo-ci.sql"
 
@@ -78,17 +80,27 @@ else
     echo "No tables, can't proceed!"
 fi
 
-if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "sed -i 's/\$\{CI_DB_PASS\}/${CI_DB_PASS}/g' ./config/config.ini.php"; then
-    echo "Configured config file"
+# Fix config file for Matomo inside docker
+host: CI_DB_HOST
+username: CI_DB_USER
+password: CI_DB_PASS
+port: CI_DB_PORT
+dbname: CI_DB_NAME
+tables_prefix: matomo_
+if docker-compose -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="dbname" --value="${CI_DB_NAME}"; then
+    # We need to update credentials somehow
+    # sed -i 's/CI_DB_PASS/${CI_DB_PASS}/g' ./config/config.ini.php"; then
+    echo "Config file has write access. Set configs."
+    docker-compose -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="host" --value="${CI_DB_HOST}"
+    docker-compose -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="username" --value="${CI_DB_USER}"
+    docker-compose -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="password" --value="${CI_DB_PASS}"
+    docker-compose -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="port" --value="${CI_DB_PORT}"
+    echo "Configured config file."
 else
-    echo "Sed failed"
+    echo "Config not writable!"
     exit;
 fi
 
-
-
-# Perform DB update
-docker-compose -f docker-compose-ci.yml exec matomo-ci ./console core:update
 
 # Delete old logs:
 echo "Delete old logs"
@@ -100,7 +112,8 @@ else
     echo "Errhm, somethings wrong!"
 fi
 
-
+# Perform DB update
+docker-compose -f docker-compose-ci.yml exec matomo-ci ./console core:update
 
 echo "Run core:archive:"
 start=$(date +%s)

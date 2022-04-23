@@ -17,7 +17,7 @@ services:
       MYSQL_ROOT_USER: ${CI_DB_USER}
       MYSQL_ROOT_PASSWORD: ${CI_DB_PASS}
     ports:
-     - 3307:3306
+     - ${CI_DB_PORT}:3306
     networks:
       - shared
   matomo-ci:
@@ -25,7 +25,7 @@ services:
     restart: always
     image: ${MATOMO_IMAGE}
     volumes:
-      - ./matomo-ci-conf/config.ini.php:/var/www/html/config/config.ini.php
+      - ./matomo-ci-conf/config.ini.php:/var/www/html/config/config.ini.php:rw
     ports:
     - 8081:9000
     networks:
