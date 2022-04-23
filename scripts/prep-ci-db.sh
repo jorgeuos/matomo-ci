@@ -26,6 +26,9 @@ fetch_db_dump(){
             # shellcheck source=/dev/null
             source ./scripts/fetch-dump.sh
         fi
+    else
+        # shellcheck source=/dev/null
+        source ./scripts/fetch-dump.sh
     fi
 }
 
