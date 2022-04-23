@@ -12,6 +12,7 @@ cd "${DOCKER_COMPOSE_DIR}" || exit
 CI_DUMP=${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}
 TODAY=$(date "+%Y-%m-%d")
 fetch_db_dump(){
+    echo "Check for GZ"
     if [ -f "$CI_DUMP.gz" ]; then
         GZ_DUMP_FROM=$(date -r "$CI_DUMP.gz" "+%Y-%m-%d")
         echo "GZIP found, from: ${GZ_DUMP_FROM}."
