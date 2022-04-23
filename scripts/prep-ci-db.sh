@@ -36,7 +36,7 @@ SQL="SHOW DATABASES;"
 while ! docker-compose -f docker-compose-ci.yml exec db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -AN -e"${SQL}" ; do sleep 1; done
 
 # Do Import
-# docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} 'matomo-ci' < /docker-entrypoint-initdb.d/99-matomo-ci.sql"
+docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} 'matomo-ci' < /docker-entrypoint-initdb.d/99-matomo-ci.sql"
 
 if docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} -AN -e\"USE 'matomo-ci'; SHOW TABLES;\""; then
     echo "We're up!"
@@ -53,7 +53,7 @@ docker-compose -f docker-compose-ci.yml exec matomo-ci ./console core:update
 
 # Delete old logs:
 echo "Delete old logs"
-LAST_DATE=$(date -v "-30d" "+%Y-%m-%d")
+LAST_DATE=$(date -v "-90d" "+%Y-%m-%d")
 EARLIEST_DATE=2021-08-12
 if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:delete-logs-data -n --dates=${EARLIEST_DATE},${LAST_DATE}"; then
     echo "Logs deleted, commence archiving."
