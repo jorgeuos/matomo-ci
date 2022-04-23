@@ -12,7 +12,7 @@ services:
     # command: --init-file /data/application/init.sql --max_allowed_packet=67108864
     volumes:
       - ./mysql_data/schema.sql:/docker-entrypoint-initdb.d/00-schema.sql:ro
-      - ./dumps/matomo-ci.sql:/docker-entrypoint-initdb.d/99-matomo-ci.sql:ro
+      - ${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}:/docker-entrypoint-initdb.d/99-matomo-ci.sql:ro
     environment:
       MYSQL_ROOT_USER: ${CI_DB_USER}
       MYSQL_ROOT_PASSWORD: ${CI_DB_PASS}

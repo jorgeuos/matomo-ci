@@ -16,7 +16,11 @@ For PROD env, run a cronjob that executes `dump-ci-raw.sh` nightly.
 
 I could, if I want, run the prep on the prod server. But because of reasons, I do it in a separate controlled environment, with no access from the Internetz.
 
-Run `prep-ci-db.sh` to prep the DB.
+Run prep the DB.
+```bash
+./scripts/prep-ci-db.sh
+```
+
 
 ## Whattabout all the other crap
 

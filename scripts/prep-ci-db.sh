@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -ex
+set -e
 
 # shellcheck source=/dev/null
 source ./scripts/check-env.sh
@@ -35,6 +35,40 @@ SQL="SHOW DATABASES;"
 
 while ! docker-compose -f docker-compose-ci.yml exec db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -AN -e"${SQL}" ; do sleep 1; done
 
+TODAY=$(date "+%Y-%m-%d")
+fetch_db_dump(){
+    if [ -f "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}.gz" ]; then
+        echo "GZIP found, from:"
+        GZ_DUMP_FROM=$(date -r "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}.gz" "+%Y-%m-%d")
+        if [ "${GZ_DUMP_FROM}" == "${TODAY}" ]; then
+            echo "GZ dump is from today, Unzip."
+            echo "Unzipping."
+            gunzip "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}.gz"
+        else
+            echo "No DB found from today. Try fetch-dump first."
+            echo "Fetch new dump"
+            # shellcheck source=/dev/null
+            source ./scripts/fetch-dump.sh
+        fi
+    fi
+}
+
+# Check if file latest
+# Check if dump exists and from today
+if [ -f "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}" ]; then
+    echo "DB dump found:"
+    echo "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}"
+    echo "From:"
+    DUMP_FROM=$(date -r "${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}" "+%Y-%m-%d")
+    if [ "${DUMP_FROM}" == "${TODAY}" ]; then
+        echo "Dump is from today, continue"
+    else
+        fetch_db_dump
+    fi
+else
+    fetch_db_dump
+fi
+
 # Do Import
 docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} 'matomo-ci' < /docker-entrypoint-initdb.d/99-matomo-ci.sql"
 
@@ -44,7 +78,12 @@ else
     echo "No tables, can't proceed!"
 fi
 
-docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "sed -i 's/\$\{CI_DB_PASS\}/${CI_DB_PASS}/g' ./config/config.ini.php"
+if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "sed -i 's/\$\{CI_DB_PASS\}/${CI_DB_PASS}/g' ./config/config.ini.php"; then
+    echo "Configured config file"
+else
+    echo "Sed failed"
+    exit;
+fi
 
 
 
