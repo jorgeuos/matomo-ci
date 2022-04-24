@@ -110,7 +110,11 @@ fi
 
 # Delete old logs:
 echo "Delete old logs"
-LAST_DATE=$(date -v "-90d" "+%Y-%m-%d")
+if [ "$MACHINE" == "Mac" ]; then
+    LAST_DATE=$(date -v "-90d" "+%Y-%m-%d")
+else
+    LAST_DATE=$(date +%Y-%m-%d -d "90 days ago")
+fi
 EARLIEST_DATE=2021-08-12
 if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:delete-logs-data -n --dates=${EARLIEST_DATE},${LAST_DATE}"; then
     echo "Logs deleted, commence archiving."
