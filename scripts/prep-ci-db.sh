@@ -11,6 +11,7 @@ DOCKER_COMPOSE_DIR=${SCRIPT_DIR}/../
 
 cd "${DOCKER_COMPOSE_DIR}" || exit
 
+# On host
 CI_DUMP=${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}
 TODAY=$(date "+%Y-%m-%d")
 check_if_gz(){
@@ -60,6 +61,7 @@ else
     exit;
 fi
 
+# Launch docker and execute commands inside container
 echo "Launch docker"
 docker-compose -f ./docker-compose-ci.yml up -d
 
@@ -180,18 +182,21 @@ else
     exit;
 fi
 
+# Inside container still
 echo "Dump prepped CI DB:"
-docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysqldump -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} ${CI_DB_NAME} > /tmp/${CI_DB_DUMP_NAME}"
+docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysqldump -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} ${CI_DB_NAME} > ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
 
+# If mount succeeded, we can run this from host
 echo "GZIP dump:"
-docker-compose -f docker-compose-ci.yml exec db-ci bash -c "gzip -f /tmp/${CI_DB_DUMP_NAME}"
+gzip -f "${IMPORT_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
+# docker-compose -f docker-compose-ci.yml exec db-ci bash -c "gzip -f ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
 
-echo "CP to host:"
-docker-compose -f docker-compose-ci.yml cp db-ci:"/tmp/${CI_DB_DUMP_NAME}.gz" "${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" 
+#echo "CP to host:"
+#docker-compose -f docker-compose-ci.yml cp db-ci:"/tmp/${CI_DB_DUMP_NAME}.gz" "${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" 
 
 # Consider using minio docker image 🤔
 echo "Send to minio."
-$MINIO_CLIENT --config-dir "${MINIO_CONFIG}" cp "${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" "${MINIO_BUCKET_PATH}/${CI_DB_DUMP_NAME}.gz"
+$MINIO_CLIENT --config-dir "${MINIO_CONFIG}" cp "${IMPORT_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" "${MINIO_BUCKET_PATH}/${CI_DB_DUMP_NAME}.gz"
 
 SCRIPT_END=$(date +%s)
 SCRIPT_RUNTIME=$((SCRIPT_END-SCRIPT_START))
