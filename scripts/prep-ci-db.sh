@@ -73,8 +73,8 @@ fi
 log_n_echo "Launch docker"
 docker-compose -f ./docker-compose-ci.yml up -d
 
-log_n_echo "Wait for response."
 log_n_echo "Checking for version:"
+log_n_echo "Wait for response."
 while ! docker-compose -f docker-compose-ci.yml exec matomo-ci ./console core:version
     do 
         log_n_echo "Still waiting."
