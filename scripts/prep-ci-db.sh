@@ -16,7 +16,7 @@ git co .
 git pull origin main
 
 log_n_echo () {
-    echo   "$1" | tee "${SCRIPT_LOGSFILE}"
+    echo "$1" | tee "${SCRIPT_LOGSFILE}"
 }
 
 # On host
