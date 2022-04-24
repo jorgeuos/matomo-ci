@@ -1,11 +1,14 @@
 #!/bin/bash
 
 set -e
+SCRIPT_START=$(date -s)
+
 
 # shellcheck source=/dev/null
 source ./scripts/check-env.sh
 
 DOCKER_COMPOSE_DIR=${SCRIPT_DIR}/../
+TEST=true
 
 cd "${DOCKER_COMPOSE_DIR}" || exit
 
@@ -66,7 +69,7 @@ check_version(){
     docker-compose -f docker-compose-ci.yml exec matomo-ci ./console core:version
 }
 echo "Wait for response."
-while ! check_version ; do echo "Still waiting." && sleep 1; done
+while ! check_version ; do sleep 1; done
 
 # More reliable way of determin DB host
 # CI_DB_HOST=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' db-ci)
@@ -78,9 +81,19 @@ SQL="SHOW DATABASES;"
 echo "Try: docker-compose -f docker-compose-ci.yml exec db-ci mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} -P${CI_DB_PORT_INTERNAL} -AN -e${SQL}"
 while ! docker-compose -f docker-compose-ci.yml exec db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -P"${CI_DB_PORT_INTERNAL}" -AN -e"${SQL}" ; do sleep 1; done
 
-# Do Import
-echo "Import DB"
-docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} 'matomo-ci' < /docker-entrypoint-initdb.d/99-matomo-ci.sql"
+if [ "$TEST" != true ]; then
+    # Do Import
+    echo "Import DB"
+    start=$(date +%s)
+    if docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} 'matomo-ci' < /docker-entrypoint-initdb.d/99-matomo-ci.sql"; then
+        end=$(date +%s)
+        runtime=$((end-start))
+        echo "DB import done in: ... $runtime"
+    else
+        echo "Errhm, something went wrong!"
+        exit;
+    fi
+fi
 
 echo "Check if we see tables."
 if docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} -AN -e\"USE 'matomo-ci'; SHOW TABLES;\""; then
@@ -120,42 +133,67 @@ if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console cor
     echo "Logs deleted, commence archiving."
 else
     echo "Errhm, somethings wrong!"
+    exit;
 fi
 
-# Perform DB update
-docker-compose -f docker-compose-ci.yml exec matomo-ci ./console core:update
 
-echo "Run core:archive:"
-start=$(date +%s)
-if time docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:archive"; then
-    end=$(date +%s)
-    runtime=$((end-start))
-    echo "Archiving done in: ... $runtime"
-else
-    echo "Errhm, somethings wrong!"
+if [ "$TEST" != true ]; then
+    # Perform DB update
+    echo "Core update"
+    start=$(date +%s)
+    if docker-compose -f docker-compose-ci.yml exec matomo-ci ./console core:update; then
+        end=$(date +%s)
+        runtime=$((end-start))
+        echo "Core:update done in: ... $runtime"
+    else
+        echo "Errhm, somethings wrong!"
+        exit;
+    fi
 fi
 
-docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "curl -f -sS https://plugins.matomo.org/api/2.0/plugins/UserConsole/download/latest > /tmp/UserConsole.zip";
-docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "unzip /tmp/UserConsole.zip -q -d /var/www/html/plugins -o";
+if [ "$TEST" != true ]; then
+    echo "Run core:archive:"
+    start=$(date +%s)
+    if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:archive"; then
+        end=$(date +%s)
+        runtime=$((end-start))
+        echo "Archiving done in: ... $runtime"
+    else
+        echo "Errhm, something went wrong with core:archive, check output for more info."
+        exit;
+    fi
+fi
+
+echo "Download and activate UserConsole if it's not active"
+if ! docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "test -d /var/www/html/plugins/UserConsole && echo 'UserConsole Exists'"; then
+    echo "Couldn't find, downloading."
+    docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "curl -f -sS https://plugins.matomo.org/api/2.0/plugins/UserConsole/download/latest > /tmp/UserConsole.zip";
+    docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "unzip /tmp/UserConsole.zip -q -d /var/www/html/plugins -o";
+fi
+echo "Files in place, activating."
 docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console plugin:activate UserConsole";
 
 echo "Reset password:"
 if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console user:reset-password --login=admin-test --new-password=\"mtmo@rocks\""; then
-    echo "Password resetted!"
+    echo "Password resetted to a very insecure password, use only in testing environment!"
 else
-    echo "Errhm, somethings wrong!"
+    echo "Errhm, something went wrong!"
+    exit;
 fi
 
 echo "Dump prepped CI DB:"
-docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysqldump -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} ${CI_DB_NAME} > ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
+docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysqldump -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} ${CI_DB_NAME} > /tmp/${CI_DB_DUMP_NAME}"
 
 echo "GZIP dump:"
-docker-compose -f docker-compose-ci.yml exec db-ci bash -c "gzip -f ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
+docker-compose -f docker-compose-ci.yml exec db-ci bash -c "gzip -f /tmp/${CI_DB_DUMP_NAME}"
 
 echo "CP to host:"
-docker-compose -f docker-compose-ci.yml cp db-ci:"${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" "./dumps/${CI_DB_DUMP_NAME}.gz" 
+docker-compose -f docker-compose-ci.yml cp db-ci:"/tmp/${CI_DB_DUMP_NAME}.gz" "${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" 
 
+# Consider using minio docker image 🤔
 echo "Send to minio."
-$MINIO_CLIENT --config-dir "${MINIO_CONFIG}" cp "./dumps/${CI_DB_DUMP_NAME}.gz" "minio/drone/mtmo/${CI_DB_DUMP_NAME}.gz"
+$MINIO_CLIENT --config-dir "${MINIO_CONFIG}" cp "${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" "${MINIO_BUCKET_PATH}/${CI_DB_DUMP_NAME}.gz"
 
-echo "Done!"
+SCRIPT_END=$(date +%s)
+SCRIPT_RUNTIME=$((SCRIPT_END-SCRIPT_START))
+echo "Done in $SCRIPT_RUNTIME!"
