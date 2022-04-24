@@ -192,7 +192,7 @@ echo "GZIP dump:"
 gzip -f "${IMPORT_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
 
 echo "Give current user writable permission"
-chmod +w "$USER":"$USER" "${IMPORT_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}".gz
+chmod +w "${IMPORT_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}".gz
 
 # Consider using minio docker image 🤔
 echo "Send to minio."
