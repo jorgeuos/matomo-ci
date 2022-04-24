@@ -86,9 +86,9 @@ done
 # export CI_DB_HOST
 
 # Just output something to see if get a response
-log_n_echo "Wait for DB."
 SQL="SHOW DATABASES;"
-log_n_echo "Try: docker-compose -f docker-compose-ci.yml exec db-ci mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} -P${CI_DB_PORT_INTERNAL} -AN -e${SQL}"
+log_n_echo "Try: docker-compose -f docker-compose-ci.yml exec db-ci mysql -AN -e${SQL}"
+log_n_echo "Wait for DB."
 while ! docker-compose -f docker-compose-ci.yml exec db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -P"${CI_DB_PORT_INTERNAL}" -AN -e"${SQL}" ; do sleep 1; done
 
 if [ "$TEST" != true ]; then
