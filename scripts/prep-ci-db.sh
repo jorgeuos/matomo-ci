@@ -216,4 +216,4 @@ log_n_echo "Done in ${SCRIPT_RUNTIME}s!"
 log_n_echo "Cleaning up."
 git co .
 # shellcheck source=/dev/null
-source ./scripts/destroy
+source ./scripts/destroy.sh
