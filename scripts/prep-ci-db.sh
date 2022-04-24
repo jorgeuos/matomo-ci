@@ -16,8 +16,14 @@ git co .
 git pull origin main
 
 log_n_echo () {
-    echo "$1" | tee "${SCRIPT_LOGSFILE}"
+    if [ -n "$2" ]; then
+        echo "$2" | tee "${SCRIPT_LOGSFILE}"
+    else
+        echo "$1" | tee -a "${SCRIPT_LOGSFILE}"
+    fi
 }
+
+log_n_echo "Begin DB prep!" "new"
 
 # On host
 CI_DUMP=${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}
