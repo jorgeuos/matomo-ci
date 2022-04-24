@@ -93,7 +93,7 @@ while ! docker-compose -f docker-compose-ci.yml exec db-ci mysql -u"${CI_DB_USER
 
 if [ "$TEST" != true ]; then
     # Do Import
-    log_n_echo "Import DB"
+    log_n_echo "Import DB, this might take a while."
     start=$(date +%s)
     if docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} 'matomo-ci' < /docker-entrypoint-initdb.d/99-matomo-ci.sql"; then
         end=$(date +%s)
