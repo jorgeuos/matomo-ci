@@ -187,16 +187,16 @@ fi
 echo "Dump prepped CI DB:"
 docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysqldump -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} ${CI_DB_NAME} > ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
 
-# If mount succeeded, we can run this from host
+# Use mounted dir, so we can run this from host
 echo "GZIP dump:"
 gzip -f "${IMPORT_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
-# docker-compose -f docker-compose-ci.yml exec db-ci bash -c "gzip -f ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
 
-#echo "CP to host:"
-#docker-compose -f docker-compose-ci.yml cp db-ci:"/tmp/${CI_DB_DUMP_NAME}.gz" "${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" 
+echo "Give current user writable permission"
+chmod +w "$USER":"$USER" "${IMPORT_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}".gz
 
 # Consider using minio docker image 🤔
 echo "Send to minio."
+
 $MINIO_CLIENT --config-dir "${MINIO_CONFIG}" cp "${IMPORT_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" "${MINIO_BUCKET_PATH}/${CI_DB_DUMP_NAME}.gz"
 
 SCRIPT_END=$(date +%s)
