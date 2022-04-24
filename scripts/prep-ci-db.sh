@@ -65,12 +65,13 @@ fi
 echo "Launch docker"
 docker-compose -f ./docker-compose-ci.yml up -d
 
-check_version(){
-    echo "Checking for version:"
-    docker-compose -f docker-compose-ci.yml exec matomo-ci ./console core:version
-}
 echo "Wait for response."
-while ! check_version ; do sleep 1; done
+echo "Checking for version:"
+while ! docker-compose -f docker-compose-ci.yml exec matomo-ci ./console core:version
+    do 
+        echo "Still waiting."
+        sleep 1
+done
 
 # More reliable way of determin DB host
 # CI_DB_HOST=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' db-ci)
