@@ -1,14 +1,13 @@
 #!/bin/bash
 
 set -e
-SCRIPT_START=$(date -s)
+SCRIPT_START=$(date +%s)
 
 
 # shellcheck source=/dev/null
 source ./scripts/check-env.sh
 
 DOCKER_COMPOSE_DIR=${SCRIPT_DIR}/../
-TEST=true
 
 cd "${DOCKER_COMPOSE_DIR}" || exit
 
