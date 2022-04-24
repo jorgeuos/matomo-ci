@@ -13,7 +13,7 @@ services:
     volumes:
       - ./mysql_data/schema.sql:/docker-entrypoint-initdb.d/00-schema.sql:ro
       - ${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}:/docker-entrypoint-initdb.d/99-matomo-ci.sql:ro
-      - ${IMPORT_DB_DUMP_PATH}:${CI_DB_DUMP_PATH}/
+      - ${IMPORT_DB_DUMP_PATH}:/dumps
     environment:
       MYSQL_ROOT_USER: ${CI_DB_USER}
       MYSQL_ROOT_PASSWORD: ${CI_DB_PASS}
