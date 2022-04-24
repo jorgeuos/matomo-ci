@@ -207,11 +207,16 @@ log_n_echo "Send to minio."
 
 $MINIO_CLIENT --config-dir "${MINIO_CONFIG}" cp "${IMPORT_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz" "${MINIO_BUCKET_PATH}/${CI_DB_DUMP_NAME}.gz"
 
-
-
 SCRIPT_END=$(date +%s)
 SCRIPT_RUNTIME=$((SCRIPT_END-SCRIPT_START))
-log_n_echo "Done in ${SCRIPT_RUNTIME}s!"
+log_n_echo "Done in ${SCRIPT_RUNTIME}:s!"
+
+if [ -n "$SLACK_T000" ]; then
+    log_n_echo "Notify Slack"
+    # shellcheck source=/dev/null
+    source ./scripts/notify.sh
+    notify_slack "Prepped DB in ${SCRIPT_RUNTIME}:s."
+fi
 
 log_n_echo "Cleaning up."
 git co .
