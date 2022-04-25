@@ -3,9 +3,10 @@
 set -e
 SCRIPT_START=$(date +%s)
 
-
 # shellcheck source=/dev/null
 source ./scripts/check-env.sh
+# shellcheck source=/dev/null
+source ./scripts/functions.sh
 
 DOCKER_COMPOSE_DIR=${SCRIPT_DIR}/../
 
@@ -15,13 +16,6 @@ cd "${DOCKER_COMPOSE_DIR}" || exit
 git co .
 git pull origin main
 
-log_n_echo () {
-    if [ -n "$2" ]; then
-        echo "$2" | tee "${SCRIPT_LOGSFILE}"
-    else
-        echo "$1" | tee -a "${SCRIPT_LOGSFILE}"
-    fi
-}
 
 log_n_echo "Begin DB prep!" "new"
 
@@ -30,6 +24,8 @@ CI_DUMP=${CI_DB_DUMP_PATH}/${DB_DUMP_NAME}
 TODAY=$(date "+%Y-%m-%d")
 check_if_gz(){
     log_n_echo "Check for GZ"
+    # shellcheck source=/dev/null
+    source ./scripts/fetch-dump.sh
     if [ -f "$CI_DUMP.gz" ]; then
         GZ_DUMP_FROM=$(date -r "$CI_DUMP.gz" "+%Y-%m-%d")
         log_n_echo "GZIP found, from: ${GZ_DUMP_FROM}."
@@ -37,18 +33,22 @@ check_if_gz(){
             log_n_echo "GZ dump is from today, Unzip."
             log_n_echo "Unzipping."
             gunzip "$CI_DUMP.gz"
+            return 0;
         else
             log_n_echo "Dump is old, fetch new one"
             log_n_echo "Fetch new dump"
-            # shellcheck source=/dev/null
-            source ./scripts/fetch-dump.sh
+            fetch_dump "${DB_DUMP_NAME}"
             gunzip "$CI_DUMP.gz"
+            return 0;
         fi
     else
-        # shellcheck source=/dev/null
-        source ./scripts/fetch-dump.sh
+        log_n_echo "No dump, fetch new one"
+        fetch_dump "${DB_DUMP_NAME}"
         gunzip "$CI_DUMP.gz"
+        return 0;
     fi
+    log_n_echo "GZ done."
+    return 0;
 }
 
 # Check if file exists and latest
@@ -103,8 +103,8 @@ if [ "$TEST" != true ]; then
     start=$(date +%s)
     if docker-compose -f docker-compose-ci.yml exec db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} 'matomo-ci' < /docker-entrypoint-initdb.d/99-matomo-ci.sql"; then
         end=$(date +%s)
-        runtime=$((end-start))
-        log_n_echo "DB import done in: ... $runtime"
+        IMPORT_RUNTIME=$((end-start))
+        log_n_echo "DB import done in: ... $IMPORT_RUNTIME"
     else
         log_n_echo "Errhm, something went wrong!"
         exit;
@@ -159,8 +159,8 @@ if [ "$TEST" != true ]; then
     start=$(date +%s)
     if docker-compose -f docker-compose-ci.yml exec matomo-ci ./console core:update; then
         end=$(date +%s)
-        runtime=$((end-start))
-        log_n_echo "Core:update done in: ... $runtime"
+        CORE_UPDATE_RUNTIME=$((end-start))
+        log_n_echo "Core:update done in: ... $CORE_UPDATE_RUNTIME"
     else
         log_n_echo "Errhm, somethings wrong!"
         exit;
@@ -172,8 +172,8 @@ if [ "$TEST" != true ]; then
     start=$(date +%s)
     if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:archive"; then
         end=$(date +%s)
-        runtime=$((end-start))
-        log_n_echo "Archiving done in: ... $runtime"
+        CORE_ARCHIVE_FIRST_RUNTIME=$((end-start))
+        log_n_echo "Archiving done in: ... $CORE_ARCHIVE_FIRST_RUNTIME"
     else
         log_n_echo "Errhm, something went wrong with core:archive, check output for more info."
         exit;
@@ -195,6 +195,20 @@ if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console use
 else
     log_n_echo "Errhm, something went wrong!"
     exit;
+fi
+
+# Just in case, archive again because of weird behaviour
+if [ "$TEST" != true ]; then
+    log_n_echo "Run core:archive:"
+    start=$(date +%s)
+    if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:archive"; then
+        end=$(date +%s)
+        CORE_ARCHIVE_SECOND_RUNTIME=$((end-start))
+        log_n_echo "Archiving done in: ... $CORE_ARCHIVE_SECOND_RUNTIME"
+    else
+        log_n_echo "Errhm, something went wrong with core:archive, check output for more info."
+        exit;
+    fi
 fi
 
 # Inside container still
@@ -221,7 +235,17 @@ if [ -n "$SLACK_T000" ]; then
     log_n_echo "Notify Slack"
     # shellcheck source=/dev/null
     source ./scripts/notify.sh
-    notify_slack "Prepped DB in ${SCRIPT_RUNTIME}:s."
+    # All runtimes:
+    # IMPORT_RUNTIME
+    # CORE_UPDATE_RUNTIME
+    # CORE_ARCHIVE_FIRST_RUNTIME
+    # CORE_ARCHIVE_SECOND_RUNTIME
+    # SCRIPT_RUNTIME
+    notify_slack "Prepped DB in Total: ${SCRIPT_RUNTIME}:s,\n \
+    DB-import in: ${IMPORT_RUNTIME}:s \n \
+    core:update in: ${CORE_UPDATE_RUNTIME}:s \n \
+    core:archive in: ${CORE_ARCHIVE_FIRST_RUNTIME}:s \n \
+    core:archive in: ${CORE_ARCHIVE_SECOND_RUNTIME}:s"
 fi
 
 log_n_echo "Cleaning up."

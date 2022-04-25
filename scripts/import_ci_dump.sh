@@ -2,24 +2,9 @@
 
 # shellcheck source=/dev/null
 source ./scripts/check-env.sh
+source ./scripts/fetch-processed-local.sh
 
 set -e
-# Check if file exists
-if [ -f "${IMPORT_DB_DUMP_PATH}/${IMPORT_DB_DUMP_NAME}.gz" ]; then
-    echo "GZIP found, from:"
-    date -r "${IMPORT_DB_DUMP_PATH}/${IMPORT_DB_DUMP_NAME}.gz" "+%Y-%m-%d %H:%M:%S"
-    echo "Unzipping."
-    gunzip "${IMPORT_DB_DUMP_PATH}/${IMPORT_DB_DUMP_NAME}.gz"
-elif [ -f "${IMPORT_DB_DUMP_PATH}/${IMPORT_DB_DUMP_NAME}" ]; then
-    echo "DB dump found:"
-    echo "${IMPORT_DB_DUMP_PATH}/${IMPORT_DB_DUMP_NAME}"
-    echo "From:"
-    date -r "${IMPORT_DB_DUMP_PATH}/${IMPORT_DB_DUMP_NAME}" "+%Y-%m-%d %H:%M:%S"
-    echo "Continuing."
-else
-    echo "No DB found. Try fetch-dump first."
-    exit;
-fi
 
 # Check if DB exists:
 if mysql -u"${IMPORT_DB_USER}" -p"${IMPORT_DB_PASS}" -e"SHOW DATABASES" 2> /dev/null | grep "${IMPORT_DB_NAME}"; then
