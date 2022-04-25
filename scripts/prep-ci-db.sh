@@ -61,9 +61,11 @@ if [ -f "$CI_DUMP" ]; then
     if [ "${DUMP_FROM}" == "${TODAY}" ]; then
         log_n_echo "Dump is from today, ${TODAY}, continue"
     else
+        log_n_echo "Dump is old, check for GZ"
         check_if_gz
     fi
 else
+    log_n_echo "No dump, check for GZ"
     check_if_gz
 fi
 
