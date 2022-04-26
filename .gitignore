@@ -10,3 +10,5 @@ logs/*
 
 .env
 
+# So we don't accidentally commit passwords and stuff
+matomo-ci-conf/config.ini.php

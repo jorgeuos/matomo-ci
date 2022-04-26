@@ -1,9 +1,25 @@
 #!/bin/bash
 
 log_n_echo () {
-    if [ -n "$2" ]; then
-        echo "$2" | tee "${SCRIPT_LOGSFILE}"
-    else
-        echo "$1" | tee -a "${SCRIPT_LOGSFILE}"
+    STR=$1
+    SUB="Step"
+    if [[ "$STR" == *"$SUB"* ]]; then
+        STR="############## $1 ##############"
     fi
+
+    if [ -n "$2" ]; then
+        echo "$STR" | tee "${SCRIPT_LOGSFILE}"
+    else
+        echo "$STR" | tee -a "${SCRIPT_LOGSFILE}"
+    fi
+}
+
+
+STEPS=$(while IFS= read -r i; do echo "${i%?}"; done < ./scripts/prep-ci-db.sh | grep -o 'step_or_skip' | wc -l | tr -d '[:space:]')
+STEP=1
+step_or_skip () {
+    if [ "$SKIP" = false ]; then
+        log_n_echo "Step $((STEP++))/${STEPS}." && return
+    fi
+    false
 }
