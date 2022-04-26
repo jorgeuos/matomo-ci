@@ -207,7 +207,7 @@ fi
 
 if step_or_skip; then
     log_n_echo "Reset password:"
-    if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console user:reset-password --login=admin-test --new-password=\"mtmo@rocks\""; then
+    if docker-compose -f docker-compose-ci.yml exec matomo-ci bash -c "./console user:reset-password --login=${CI_MTMO_USER} --new-password=${CI_MTMO_PASS}"; then
         log_n_echo "Password resetted to a very insecure password, use only in testing environment!"
     else
         log_n_echo "Errhm, something went wrong!"
