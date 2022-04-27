@@ -71,8 +71,7 @@ if step_or_skip; then
     if [ -f "$CI_DUMP" ]; then
         log_n_echo "We have file."
     else
-        log_n_echo "Still no file, exit."
-        SKIP="Couldn't determine which dump to prep."
+        log_n_echo "Still no file, can't determine which dump to prep, exit." "skip"
     fi
 fi
 
@@ -82,10 +81,16 @@ if step_or_skip; then
     if ${DOCKER_COMPOSE} -f ./docker-compose-ci.yml up -d; then
         log_n_echo "Checking for version:"
         log_n_echo "Wait for response."
+        COUNT=0
         while ! ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci ./console core:version
-            do
-                log_n_echo "Still waiting."
-                sleep 1
+        do
+            ((COUNT++))
+            if [ "${COUNT}" -gt 120 ]; then
+              log_n_echo "Docker not launching." "skip"
+              break
+            fi
+            log_n_echo "Still waiting."
+            sleep 1
         done
     else
         log_n_echo "Docker not launching." "skip"
@@ -104,7 +109,6 @@ if step_or_skip; then
     while ! ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -P"${CI_DB_PORT_INTERNAL}" -AN -e"${SQL}" ; do sleep 1; done
 fi
 
-log_n_echo "We mount the dump and import it at start up." "skip"
 if step_or_skip; then
     # Do Import
     log_n_echo "Import DB, this might take a while."
@@ -114,11 +118,9 @@ if step_or_skip; then
         IMPORT_RUNTIME=$((end-start))
         log_n_echo "DB import done in: ... $IMPORT_RUNTIME"
     else
-        log_n_echo "Errhm, something went wrong!"
-        SKIP=true
+        log_n_echo "DB import failed!" "skip"
     fi
 fi
-SKIP=false
 
 if step_or_skip; then
     log_n_echo "Check if we see tables."
@@ -126,8 +128,7 @@ if step_or_skip; then
     "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} -AN -e\"USE 'matomo-ci'; SHOW TABLES;\""; then
         log_n_echo "We're up!"
     else
-        log_n_echo "No tables, can't proceed!"
-        SKIP=true
+        log_n_echo "No tables, can't proceed!" "skip"
     fi
 fi
 
@@ -146,8 +147,7 @@ if step_or_skip; then
         ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="port" --value="${CI_DB_PORT_INTERNAL}"
         log_n_echo "Configured config file."
     else
-        log_n_echo "Config not writable!"
-        SKIP=true
+        log_n_echo "Config not writable!" "skip"
     fi
 fi
 
@@ -164,8 +164,7 @@ if step_or_skip; then
     if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:delete-logs-data -n --dates=${EARLIEST_DATE},${LAST_DATE}"; then
         log_n_echo "Logs deleted, commence archiving."
     else
-        log_n_echo "Errhm, somethings wrong!"
-        SKIP=true
+        log_n_echo "Couldn't delete logs!" "skip"
     fi
 fi
 
@@ -178,30 +177,25 @@ if step_or_skip; then
         CORE_UPDATE_RUNTIME=$((end-start))
         log_n_echo "Core:update done in: ... $CORE_UPDATE_RUNTIME"
     else
-        log_n_echo "Errhm, somethings wrong!"
-        SKIP=true
+        log_n_echo "DB update failed!" "skip"
     fi
 fi
 
-if step_or_skip; then
-    log_n_echo "Run core:archive:"
-    start=$(date +%s)
-    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:archive"; then
-        end=$(date +%s)
-        CORE_ARCHIVE_FIRST_RUNTIME=$((end-start))
-        log_n_echo "Archiving done in: ... $CORE_ARCHIVE_FIRST_RUNTIME"
-    else
-        log_n_echo "Errhm, something went wrong with core:archive, check output for more info."
-        SKIP=true
-    fi
-fi
 
 if step_or_skip; then
     log_n_echo "Download and activate UserConsole if it's not active"
     if ! ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "test -d /var/www/html/plugins/UserConsole && echo 'UserConsole Exists'"; then
         log_n_echo "Couldn't find, downloading."
-        ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "curl -f -sS https://plugins.matomo.org/api/2.0/plugins/UserConsole/download/latest > /tmp/UserConsole.zip";
-        ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "unzip /tmp/UserConsole.zip -q -d /var/www/html/plugins -o";
+        if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "curl -f -sS https://plugins.matomo.org/api/2.0/plugins/UserConsole/download/latest > /tmp/UserConsole.zip"; then
+            log_n_echo "Download files."
+            if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "unzip /tmp/UserConsole.zip -q -d /var/www/html/plugins -o"; then
+                log_n_echo "Files unzipped."
+            else
+                log_n_echo "Couldn't unzip files!" "skip"
+            fi
+        else
+            log_n_echo "Couldn't get files, check proxy settings." "skip"
+        fi
     fi
     log_n_echo "Files in place, activating."
     ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "./console plugin:activate UserConsole";
@@ -210,24 +204,34 @@ fi
 if step_or_skip; then
     log_n_echo "Reset password:"
     if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "./console user:reset-password --login=${CI_MTMO_USER} --new-password=${CI_MTMO_PASS}"; then
-        log_n_echo "Password resetted to a very insecure password, use only in testing environment!"
+        log_n_echo "Password resetted for test environment!"
     else
-        log_n_echo "Errhm, something went wrong!"
-        SKIP=true
+        log_n_echo "Reset password failed!" "skip"
+    fi
+fi
+
+if step_or_skip; then
+    log_n_echo "Run core:archive no1:"
+    start=$(date +%s)
+    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:archive"; then
+        end=$(date +%s)
+        CORE_ARCHIVE_FIRST_RUNTIME=$((end-start))
+        log_n_echo "Archiving done in: ... $CORE_ARCHIVE_FIRST_RUNTIME"
+    else
+        log_n_echo "Errhm, something went wrong with core:archive 1, check output for more info." "skip"
     fi
 fi
 
 if step_or_skip; then
     # Just in case, archive again because of weird behaviour
-    log_n_echo "Run core:archive:"
+    log_n_echo "Run core:archive no2:"
     start=$(date +%s)
     if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:archive"; then
         end=$(date +%s)
         CORE_ARCHIVE_SECOND_RUNTIME=$((end-start))
         log_n_echo "Archiving done in: ... $CORE_ARCHIVE_SECOND_RUNTIME"
     else
-        log_n_echo "Errhm, something went wrong with core:archive, check output for more info."
-        SKIP=true
+        log_n_echo "Errhm, something went wrong with core:archive 2, check output for more info." "skip"
     fi
 fi
 
@@ -237,8 +241,7 @@ if step_or_skip; then
     if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec db-ci bash -c "mysqldump -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} ${CI_DB_NAME} > ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"; then
         log_n_echo "Dump created: ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
     else
-        log_n_echo "Errhm, something went wrong with mysqldump."
-        SKIP=true
+        log_n_echo "Errhm, something went wrong with mysqldump." "skip"
     fi
 fi
 
@@ -248,8 +251,7 @@ if step_or_skip; then
     if gzip -f "${IMPORT_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"; then
         log_n_echo "GZIPPED ${IMPORT_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}.gz"
     else
-        log_n_echo "Errhm, something went wrong with gzip."
-        SKIP=true
+        log_n_echo "Errhm, something went wrong with gzip." "skip"
     fi
 fi
 
