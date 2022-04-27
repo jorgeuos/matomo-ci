@@ -109,6 +109,7 @@ if step_or_skip; then
     while ! ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -P"${CI_DB_PORT_INTERNAL}" -AN -e"${SQL}" ; do sleep 1; done
 fi
 
+log_n_echo "Try skip import again." "skip"
 if step_or_skip; then
     # Do Import
     log_n_echo "Import DB, this might take a while."
@@ -121,6 +122,7 @@ if step_or_skip; then
         log_n_echo "DB import failed!" "skip"
     fi
 fi
+SKIP=false
 
 if step_or_skip; then
     log_n_echo "Check if we see tables."
@@ -168,6 +170,7 @@ if step_or_skip; then
     fi
 fi
 
+SKIP="Testing"
 if step_or_skip; then
     # Perform DB update
     log_n_echo "Core update"
