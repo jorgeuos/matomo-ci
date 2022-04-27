@@ -12,7 +12,8 @@ DOCKER_COMPOSE_DIR=${SCRIPT_DIR}/../
 
 cd "${DOCKER_COMPOSE_DIR}" || exit
 
-log_n_echo "Begin DB prep!" "new"
+
+log_n_echo "Begin DB prep! $(date \"+%Y-%m-%d H:i:s\")" "new"
 
 # On host
 CI_DUMP=${IMPORT_DB_DUMP_PATH}/${DB_DUMP_NAME}
@@ -289,3 +290,5 @@ log_n_echo "Cleaning up."
 
 # shellcheck source=/dev/null
 source ./scripts/destroy.sh
+
+echo "All done, bye 👋! $(date \"+%Y-%m-%d H:i:s\")"

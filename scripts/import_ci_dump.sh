@@ -30,7 +30,8 @@ mysql -u"${IMPORT_DB_USER}" -p"${IMPORT_DB_PASS}" -e"${CREATE}" 2> /dev/null
 # Import DB
 if [ -f "${IMPORT_DB_DUMP_PATH}/${IMPORT_DB_DUMP_NAME}" ]; then
     echo "Importing:"
-    mysql -u"${IMPORT_DB_USER}" -p"${IMPORT_DB_PASS}" "${IMPORT_DB_NAME}" < "${IMPORT_DB_DUMP_PATH}/${IMPORT_DB_DUMP_NAME}" 2> /dev/null
+    mysql -u"${IMPORT_DB_USER}" -p"${IMPORT_DB_PASS}" "${IMPORT_DB_NAME}" < "${IMPORT_DB_DUMP_PATH}/${IMPORT_DB_DUMP_NAME}"
+    # 2> /dev/null
     # If you wanna surpress mysql warning
     # 2> /dev/null
     echo "Done."
