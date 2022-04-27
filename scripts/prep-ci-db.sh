@@ -8,13 +8,12 @@ source ./scripts/check-env.sh
 # shellcheck source=/dev/null
 source ./scripts/functions.sh
 
-export COMPOSE_INTERACTIVE_NO_CLI=1
-export DOCKER_COMPOSE_DIR=${SCRIPT_DIR}/../
+DOCKER_COMPOSE_DIR=${SCRIPT_DIR}/../
 
 cd "${DOCKER_COMPOSE_DIR}" || exit
 
 
-log_n_echo "Begin DB prep! $(date \"+%Y-%m-%d H:i:s\")" "new"
+log_n_echo "Begin DB prep! $(date)" "new"
 
 # On host
 CI_DUMP=${IMPORT_DB_DUMP_PATH}/${DB_DUMP_NAME}
@@ -83,7 +82,7 @@ if step_or_skip; then
         log_n_echo "Checking for version:"
         log_n_echo "Wait for response."
         COUNT=0
-        while ! ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci ./console core:version
+        while ! ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci ./console core:version
         do
             ((COUNT++))
             if [ "${COUNT}" -gt 120 ]; then
@@ -114,7 +113,7 @@ if step_or_skip; then
     # Do Import
     log_n_echo "Import DB, this might take a while."
     start=$(date +%s)
-    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} 'matomo-ci' < /docker-entrypoint-initdb.d/99-matomo-ci.sql"; then
+    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T db-ci bash -c "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} 'matomo-ci' < /docker-entrypoint-initdb.d/99-matomo-ci.sql"; then
         end=$(date +%s)
         IMPORT_RUNTIME=$((end-start))
         log_n_echo "DB import done in: ... $IMPORT_RUNTIME"
@@ -295,4 +294,4 @@ log_n_echo "Cleaning up."
 # shellcheck source=/dev/null
 source ./scripts/destroy.sh
 
-log_n_echo "All done, bye 👋! $(date \"+%Y-%m-%d H:i:s\")"
+log_n_echo "All done, bye 👋! $(date)"
