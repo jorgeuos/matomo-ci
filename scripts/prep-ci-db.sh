@@ -88,8 +88,7 @@ if step_or_skip; then
                 sleep 1
         done
     else
-        log_n_echo "Docker not launching."
-        SKIP="Docker not launching."
+        log_n_echo "Docker not launching." "skip"
     fi
 fi
 

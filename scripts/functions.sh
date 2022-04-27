@@ -7,8 +7,11 @@ log_n_echo () {
         STR="############## $1 ##############"
     fi
 
-    if [ -n "$2" ]; then
+    if [ "$2" = "new" ]; then
         echo "$STR" | tee "${SCRIPT_LOGSFILE}"
+    elif [ "$2" = "skip" ]; then
+        SKIP=$STR
+        echo "$STR" | tee -a "${SCRIPT_LOGSFILE}"
     else
         echo "$STR" | tee -a "${SCRIPT_LOGSFILE}"
     fi
