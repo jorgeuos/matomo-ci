@@ -18,8 +18,9 @@ log_n_echo () {
 STEPS=$(while IFS= read -r i; do echo "${i%?}"; done < ./scripts/prep-ci-db.sh | grep -o 'step_or_skip' | wc -l | tr -d '[:space:]')
 STEP=1
 step_or_skip () {
-    if [ "$SKIP" = false ]; then
-        log_n_echo "Step $((STEP++))/${STEPS}." && return
+    if [ "${SKIP}" = false ]; then
+        log_n_echo "Step $((STEP++))/${STEPS}."
+        return
     fi
     false
 }
