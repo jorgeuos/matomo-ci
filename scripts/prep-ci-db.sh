@@ -291,4 +291,4 @@ log_n_echo "Cleaning up."
 # shellcheck source=/dev/null
 source ./scripts/destroy.sh
 
-echo "All done, bye 👋! $(date \"+%Y-%m-%d H:i:s\")"
+log_n_echo "All done, bye 👋! $(date \"+%Y-%m-%d H:i:s\")"
