@@ -106,7 +106,7 @@ if step_or_skip; then
     SQL="SHOW DATABASES;"
     log_n_echo "Try: ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec db-ci mysql -AN -e${SQL}"
     log_n_echo "Wait for DB."
-    while ! ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -P"${CI_DB_PORT_INTERNAL}" -AN -e"${SQL}" ; do sleep 1; done
+    while ! ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -P"${CI_DB_PORT_INTERNAL}" -AN -e"${SQL}" ; do sleep 1; done
 fi
 
 if step_or_skip; then
@@ -124,7 +124,7 @@ fi
 
 if step_or_skip; then
     log_n_echo "Check if we see tables."
-    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec db-ci bash -c \
+    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T db-ci bash -c \
     "mysql -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} -AN -e\"USE 'matomo-ci'; SHOW TABLES;\""; then
         log_n_echo "We're up!"
     else
@@ -137,14 +137,14 @@ if step_or_skip; then
     docker exec --user=root -it  matomo-ci chown www-data:www-data /var/www/html/config/config.ini.php
     # Fix config file for Matomo inside docker
     log_n_echo "Try to update conf file."
-    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="dbname" --value="${CI_DB_NAME}"; then
+    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci ./console config:set --section="database" --key="dbname" --value="${CI_DB_NAME}"; then
         # We need to update credentials somehow
         # sed -i 's/CI_DB_PASS/${CI_DB_PASS}/g' ./config/config.ini.php"; then
         log_n_echo "Config file has write access. Set configs."
-        ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="host" --value="${CI_DB_HOST}"
-        ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="username" --value="${CI_DB_USER}"
-        ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="password" --value="${CI_DB_PASS}"
-        ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci ./console config:set --section="database" --key="port" --value="${CI_DB_PORT_INTERNAL}"
+        ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci ./console config:set --section="database" --key="host" --value="${CI_DB_HOST}"
+        ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci ./console config:set --section="database" --key="username" --value="${CI_DB_USER}"
+        ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci ./console config:set --section="database" --key="password" --value="${CI_DB_PASS}"
+        ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci ./console config:set --section="database" --key="port" --value="${CI_DB_PORT_INTERNAL}"
         log_n_echo "Configured config file."
     else
         log_n_echo "Config not writable!" "skip"
@@ -161,7 +161,7 @@ if step_or_skip; then
         LAST_DATE=$(date +%Y-%m-%d -d "90 days ago")
     fi
     EARLIEST_DATE=2021-08-12
-    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:delete-logs-data -n --dates=${EARLIEST_DATE},${LAST_DATE}"; then
+    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci bash -c "./console core:delete-logs-data -n --dates=${EARLIEST_DATE},${LAST_DATE}"; then
         log_n_echo "Logs deleted, commence archiving."
     else
         log_n_echo "Couldn't delete logs!" "skip"
@@ -172,7 +172,7 @@ if step_or_skip; then
     # Perform DB update
     log_n_echo "Core update"
     start=$(date +%s)
-    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci ./console core:update; then
+    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci ./console core:update; then
         end=$(date +%s)
         CORE_UPDATE_RUNTIME=$((end-start))
         log_n_echo "Core:update done in: ... $CORE_UPDATE_RUNTIME"
@@ -184,11 +184,11 @@ fi
 
 if step_or_skip; then
     log_n_echo "Download and activate UserConsole if it's not active"
-    if ! ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "test -d /var/www/html/plugins/UserConsole && echo 'UserConsole Exists'"; then
+    if ! ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci bash -c "test -d /var/www/html/plugins/UserConsole && echo 'UserConsole Exists'"; then
         log_n_echo "Couldn't find, downloading."
-        if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "curl -f -sS https://plugins.matomo.org/api/2.0/plugins/UserConsole/download/latest > /tmp/UserConsole.zip"; then
+        if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci bash -c "curl -f -sS https://plugins.matomo.org/api/2.0/plugins/UserConsole/download/latest > /tmp/UserConsole.zip"; then
             log_n_echo "Download files."
-            if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "unzip /tmp/UserConsole.zip -q -d /var/www/html/plugins -o"; then
+            if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci bash -c "unzip /tmp/UserConsole.zip -q -d /var/www/html/plugins -o"; then
                 log_n_echo "Files unzipped."
             else
                 log_n_echo "Couldn't unzip files!" "skip"
@@ -198,12 +198,12 @@ if step_or_skip; then
         fi
     fi
     log_n_echo "Files in place, activating."
-    ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "./console plugin:activate UserConsole";
+    ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci bash -c "./console plugin:activate UserConsole";
 fi
 
 if step_or_skip; then
     log_n_echo "Reset password:"
-    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "./console user:reset-password --login=${CI_MTMO_USER} --new-password=${CI_MTMO_PASS}"; then
+    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci bash -c "./console user:reset-password --login=${CI_MTMO_USER} --new-password=${CI_MTMO_PASS}"; then
         log_n_echo "Password resetted for test environment!"
     else
         log_n_echo "Reset password failed!" "skip"
@@ -213,7 +213,7 @@ fi
 if step_or_skip; then
     log_n_echo "Run core:archive no1:"
     start=$(date +%s)
-    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:archive"; then
+    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci bash -c "./console core:archive"; then
         end=$(date +%s)
         CORE_ARCHIVE_FIRST_RUNTIME=$((end-start))
         log_n_echo "Archiving done in: ... $CORE_ARCHIVE_FIRST_RUNTIME"
@@ -226,7 +226,7 @@ if step_or_skip; then
     # Just in case, archive again because of weird behaviour
     log_n_echo "Run core:archive no2:"
     start=$(date +%s)
-    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec matomo-ci bash -c "./console core:archive"; then
+    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci bash -c "./console core:archive"; then
         end=$(date +%s)
         CORE_ARCHIVE_SECOND_RUNTIME=$((end-start))
         log_n_echo "Archiving done in: ... $CORE_ARCHIVE_SECOND_RUNTIME"
@@ -238,7 +238,7 @@ fi
 if step_or_skip; then
     # Inside container still
     log_n_echo "Dump prepped CI DB:"
-    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec db-ci bash -c "mysqldump -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} ${CI_DB_NAME} > ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"; then
+    if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T db-ci bash -c "mysqldump -u${CI_DB_USER} -p${CI_DB_PASS} -h${CI_DB_HOST} ${CI_DB_NAME} > ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"; then
         log_n_echo "Dump created: ${CI_DB_DUMP_PATH}/${CI_DB_DUMP_NAME}"
     else
         log_n_echo "Errhm, something went wrong with mysqldump." "skip"
