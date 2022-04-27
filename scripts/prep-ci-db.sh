@@ -134,7 +134,7 @@ fi
 
 if step_or_skip; then
     log_n_echo "Make config file writable"
-    docker exec --user=root -it  matomo-ci chown www-data:www-data /var/www/html/config/config.ini.php
+    docker exec --user=root matomo-ci chown www-data:www-data /var/www/html/config/config.ini.php
     # Fix config file for Matomo inside docker
     log_n_echo "Try to update conf file."
     if ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec -T matomo-ci ./console config:set --section="database" --key="dbname" --value="${CI_DB_NAME}"; then
