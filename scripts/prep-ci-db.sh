@@ -104,6 +104,7 @@ if step_or_skip; then
     while ! ${DOCKER_COMPOSE} -f docker-compose-ci.yml exec db-ci mysql -u"${CI_DB_USER}" -p"${CI_DB_PASS}" -h"${CI_DB_HOST}" -P"${CI_DB_PORT_INTERNAL}" -AN -e"${SQL}" ; do sleep 1; done
 fi
 
+log_n_echo "We mount the dump and import it at start up." "skip"
 if step_or_skip; then
     # Do Import
     log_n_echo "Import DB, this might take a while."
@@ -117,6 +118,7 @@ if step_or_skip; then
         SKIP=true
     fi
 fi
+SKIP=false
 
 if step_or_skip; then
     log_n_echo "Check if we see tables."
